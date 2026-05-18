@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAN Tracker — Registro Diario de Rendimiento</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131920;
+    --surface3: #1a2330;
+    --border: rgba(255,255,255,0.06);
+    --border-active: rgba(0,210,160,0.3);
+    --accent: #00d2a0;
+    --accent2: #0095ff;
+    --accent3: #ff6b35;
+    --text: #e8edf2;
+    --text-dim: #6b7a8d;
+    --text-muted: #3a4555;
+    --red: #ff4757;
+    --orange: #ffa502;
+    --yellow: #ffd32a;
+    --blue: #0095ff;
+    --green: #00d2a0;
+    --r-color: #0095ff;
+    --a-color: #00d2a0;
+    --n-color: #a78bfa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,210,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,210,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo-mark {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+
+  .logo-letter {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    letter-spacing: -1px;
+  }
+
+  .logo-r { background: rgba(0,149,255,0.15); color: var(--r-color); border: 1px solid rgba(0,149,255,0.3); }
+  .logo-a { background: rgba(0,210,160,0.15); color: var(--a-color); border: 1px solid rgba(0,210,160,0.3); }
+  .logo-n { background: rgba(167,139,250,0.15); color: var(--n-color); border: 1px solid rgba(167,139,250,0.3); }
+
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .header .date-display {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 32px;
+    animation: fadeDown 0.6s 0.1s ease both;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--surface3);
+    color: var(--accent);
+    border: 1px solid var(--border-active);
+  }
+
+  /* Panels */
+  .panel { display: none; animation: fadeIn 0.3s ease; }
+  .panel.active { display: block; }
+
+  /* Section blocks */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 16px;
+    transition: border-color 0.3s;
+  }
+
+  .section:hover { border-color: rgba(255,255,255,0.1); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .icon-morning { background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.2); }
+  .icon-day { background: rgba(0,149,255,0.1); border: 1px solid rgba(0,149,255,0.2); }
+  .icon-night { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+  .icon-ran { background: rgba(0,210,160,0.1); border: 1px solid rgba(0,210,160,0.2); }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .section-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* RAN Scale */
+  .ran-scale {
+    margin-bottom: 20px;
+  }
+
+  .ran-scale label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .scale-track {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .scale-btn {
+    flex: 1;
+    height: 40px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .scale-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .scale-btn.selected-1, .scale-btn.selected-2, .scale-btn.selected-3 { background: rgba(255,71,87,0.15); border-color: var(--red); color: var(--red); }
+  .scale-btn.selected-4, .scale-btn.selected-5, .scale-btn.selected-6 { background: rgba(255,165,2,0.15); border-color: var(--orange); color: var(--orange); }
+  .scale-btn.selected-7 { background: rgba(255,211,42,0.15); border-color: var(--yellow); color: var(--yellow); }
+  .scale-btn.selected-8, .scale-btn.selected-9 { background: rgba(0,149,255,0.15); border-color: var(--blue); color: var(--blue); }
+  .scale-btn.selected-10 { background: rgba(0,210,160,0.15); border-color: var(--green); color: var(--green); }
+
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+
+  .state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    transition: all 0.3s;
+  }
+
+  .badge-red { background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); color: var(--red); }
+  .badge-orange { background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3); color: var(--orange); }
+  .badge-yellow { background: rgba(255,211,42,0.1); border: 1px solid rgba(255,211,42,0.3); color: var(--yellow); }
+  .badge-blue { background: rgba(0,149,255,0.1); border: 1px solid rgba(0,149,255,0.3); color: var(--blue); }
+  .badge-green { background: rgba(0,210,160,0.1); border: 1px solid rgba(0,210,160,0.3); color: var(--green); }
+  .badge-hidden { opacity: 0; }
+
+  /* Checklist */
+  .checklist { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .check-item:hover { border-color: rgba(255,255,255,0.1); }
+
+  .check-item.checked {
+    border-color: var(--border-active);
+    background: rgba(0,210,160,0.05);
+  }
+
+  .check-box {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--text-muted);
+    border-radius: 5px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .check-item.checked .check-box {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .check-mark { display: none; font-size: 11px; color: var(--bg); }
+  .check-item.checked .check-mark { display: block; }
+
+  .check-text {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+    transition: color 0.2s;
+  }
+
+  .check-item.checked .check-text { color: var(--text); }
+
+  /* Textarea */
+  .field-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 14px;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 16px;
+  }
+
+  textarea:focus { border-color: var(--border-active); }
+  textarea::placeholder { color: var(--text-muted); }
+
+  /* Signal detector */
+  .signal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .signal-btn {
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    line-height: 1.4;
+  }
+
+  .signal-btn:hover { border-color: rgba(255,165,2,0.3); color: var(--text); }
+  .signal-btn.active { background: rgba(255,165,2,0.08); border-color: rgba(255,165,2,0.4); color: var(--orange); }
+
+  .signal-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: inline-block;
+    margin-right: 6px;
+    transition: background 0.2s;
+  }
+
+  .signal-btn.active .signal-dot { background: var(--orange); }
+
+  /* Save button */
+  .btn-save {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+
+  .btn-save:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-save:active { transform: translateY(0); }
+
+  .btn-clear {
+    width: 100%;
+    padding: 12px;
+    background: none;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+
+  .btn-clear:hover { color: var(--red); border-color: rgba(255,71,87,0.3); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: var(--bg);
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: transform 0.3s ease;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* History panel */
+  .history-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .history-empty .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+
+  .week-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+
+  .history-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .history-card:hover { border-color: rgba(255,255,255,0.1); }
+
+  .history-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .history-date {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .history-scores {
+    display: flex;
+    gap: 8px;
+  }
+
+  .score-pill {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  .history-bars {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    height: 40px;
+  }
+
+  .history-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+  .history-bar {
+    width: 100%;
+    border-radius: 3px;
+    transition: height 0.3s ease;
+  }
+
+  .history-bar-label { font-size: 8px; color: var(--text-muted); letter-spacing: 1px; }
+
+  .history-detail {
+    display: none;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .history-card.expanded .history-detail { display: block; }
+
+  .detail-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .detail-key {
+    color: var(--text-muted);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .detail-val { color: var(--text-dim); }
+
+  /* Stats panel */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .trend-chart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .trend-title {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .trend-bars {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    height: 80px;
+  }
+
+  .trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  .trend-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+    transition: height 0.5s ease;
+  }
+
+  .trend-day { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Progress bar */
+  .progress-wrap { margin-bottom: 20px; }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--surface3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* RAN Protocol quick ref */
+  .protocol-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .protocol-letter {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .protocol-content { flex: 1; }
+
+  .protocol-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .protocol-desc { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+
+  @media (max-width: 500px) {
+    .signal-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .scale-track { gap: 3px; }
+    .scale-btn { font-size: 11px; height: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="logo-mark">
+      <div class="logo-letter logo-r">R</div>
+      <div class="logo-letter logo-a">A</div>
+      <div class="logo-letter logo-n">N</div>
+    </div>
+    <h1>Cognitive Optimization Method®</h1>
+    <div class="date-display" id="dateDisplay"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('registro')">Registro</button>
+    <button class="tab" onclick="switchTab('historial')">Historial</button>
+    <button class="tab" onclick="switchTab('estadisticas')">Estadísticas</button>
+    <button class="tab" onclick="switchTab('protocolo')">Protocolo</button>
+  </div>
+
+  <!-- REGISTRO PANEL -->
+  <div class="panel active" id="panel-registro">
+
+    <!-- MAÑANA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-morning">🌅</div>
+        <div>
+          <div class="section-title">Check-in Mañana</div>
+          <div class="section-sub">Activación · 5 min</div>
+        </div>
+      </div>
+
+      <div class="ran-scale">
+        <label>ESCALA RAN — Estado inicial al despertar</label>
+        <div class="scale-track" id="scale-morning"></div>
+        <div class="scale-labels">
+          <span>🔴 Saturación</span>
+          <span>🟠 Fatiga</span>
+          <span>🟡 Operativo</span>
+          <span>🔵 Claridad</span>
+          <span>🟢 RAN</span>
+        </div>
+        <div class="state-badge badge-hidden" id="badge-morning"></div>
+      </div>
+
+      <div class="checklist">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">2 min movimiento intencional (sin pantalla)</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">1 min desenganche focal + respiración 4-2-6</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">2 min definición de foco único del día</div>
+        </div>
+      </div>
+
+      <label class="field-label">Foco único del día</label>
+      <textarea id="focus-day" rows="2" placeholder="Una sola tarea o decisión estratégica para hoy..."></textarea>
+    </div>
+
+    <!-- MEDIODÍA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-day">⚡</div>
+        <div>
+          <div class="section-title">Pausa RAN — Mediodía</div>
+          <div class="section-sub">Gestión · 3 min</div>
+        </div>
+      </div>
+
+      <div class="ran-scale">
+        <label>ESCALA RAN — Estado al momento de la pausa</label>
+        <div class="scale-track" id="scale-midday"></div>
+        <div class="scale-labels">
+          <span>🔴 Saturación</span>
+          <span>🟠 Fatiga</span>
+          <span>🟡 Operativo</span>
+          <span>🔵 Claridad</span>
+          <span>🟢 RAN</span>
+        </div>
+        <div class="state-badge badge-hidden" id="badge-midday"></div>
+      </div>
+
+      <label class="field-label">Señal que activó la pausa</label>
+      <div class="signal-grid">
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Foco fragmentado</button>
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Decisión con resistencia</button>
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Respuesta en automático</button>
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Cansancio mental</button>
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Irritabilidad o impaciencia</button>
+        <button class="signal-btn" onclick="toggleSignal(this)"><span class="signal-dot"></span>Rutina preventiva</button>
+      </div>
+
+      <div class="checklist">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">60 seg sin pantalla ni input</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">Desenganche focal + respiración 4-2-6</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">Redefinición de foco para los próximos 50 min</div>
+        </div>
+      </div>
+
+      <label class="field-label">Redefinición de foco post-pausa</label>
+      <textarea id="focus-midday" rows="2" placeholder="¿Cuál es lo único que importa en los próximos 50 minutos?"></textarea>
+    </div>
+
+    <!-- NOCHE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-night">🌙</div>
+        <div>
+          <div class="section-title">Cierre Nocturno</div>
+          <div class="section-sub">Recuperación · 3 min</div>
+        </div>
+      </div>
+
+      <div class="ran-scale">
+        <label>ESCALA RAN — Estado al final del día</label>
+        <div class="scale-track" id="scale-night"></div>
+        <div class="scale-labels">
+          <span>🔴 Saturación</span>
+          <span>🟠 Fatiga</span>
+          <span>🟡 Operativo</span>
+          <span>🔵 Claridad</span>
+          <span>🟢 RAN</span>
+        </div>
+        <div class="state-badge badge-hidden" id="badge-night"></div>
+      </div>
+
+      <label class="field-label">Vaciado mental — pendientes e ideas</label>
+      <textarea id="mental-dump" rows="3" placeholder="Todo lo que tenés en la cabeza. Sin filtro. Sin orden. Solo sacarlo afuera..."></textarea>
+
+      <div class="checklist">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">Vaciado mental completado por escrito</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">Pantallas apagadas 45 min antes de dormir</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><span class="check-mark">✓</span></div>
+          <div class="check-text">Entorno de baja estimulación activado</div>
+        </div>
+      </div>
+
+      <label class="field-label">Decisión clave del día (tomada en estado ≥8)</label>
+      <textarea id="key-decision" rows="2" placeholder="¿Cuál fue la decisión más importante que tomaste hoy y desde qué estado?"></textarea>
+
+      <label class="field-label">Aprendizaje del día</label>
+      <textarea id="learning" rows="2" placeholder="Una observación sobre tu patrón cognitivo de hoy..."></textarea>
+    </div>
+
+    <button class="btn-save" onclick="saveDay()">— GUARDAR REGISTRO DEL DÍA —</button>
+    <button class="btn-clear" onclick="clearForm()">Limpiar formulario</button>
+  </div>
+
+  <!-- HISTORIAL PANEL -->
+  <div class="panel" id="panel-historial">
+    <div id="history-container">
+      <div class="history-empty">
+        <div class="empty-icon">📊</div>
+        <div>Sin registros aún.<br>Completá tu primer día.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS PANEL -->
+  <div class="panel" id="panel-estadisticas">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-days">0</div>
+        <div class="stat-label">Días registrados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-avg">—</div>
+        <div class="stat-label">Promedio RAN mañana</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-streak">0</div>
+        <div class="stat-label">Racha actual</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-best">—</div>
+        <div class="stat-label">Mejor estado mañana</div>
+      </div>
+    </div>
+
+    <div class="trend-chart">
+      <div class="trend-title">Tendencia RAN — Últimos 7 días</div>
+      <div class="trend-bars" id="trend-bars"></div>
+    </div>
+
+    <div class="section" style="margin-bottom:0">
+      <div class="section-header" style="margin-bottom:12px">
+        <div class="section-icon icon-ran">📈</div>
+        <div>
+          <div class="section-title">Análisis de patrones</div>
+          <div class="section-sub">Basado en tus registros</div>
+        </div>
+      </div>
+      <div id="pattern-analysis" style="font-size:12px; color:var(--text-dim); line-height:1.8;">
+        Completá al menos 3 días de registro para ver tu análisis de patrones cognitivos.
+      </div>
+    </div>
+  </div>
+
+  <!-- PROTOCOLO PANEL -->
+  <div class="panel" id="panel-protocolo">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-ran">⚙️</div>
+        <div>
+          <div class="section-title">Protocolo RAN</div>
+          <div class="section-sub">Referencia rápida</div>
+        </div>
+      </div>
+
+      <div class="protocol-row">
+        <div class="protocol-letter logo-r" style="width:32px;height:32px;font-size:14px;">R</div>
+        <div class="protocol-content">
+          <div class="protocol-name" style="color:var(--r-color)">Regeneración</div>
+          <div class="protocol-desc">Desenganche focal: mirá un punto a +6 metros durante 60 seg. Combiná con respiración 4-2-6. Vaciá el residuo metabólico antes de intentar activar.</div>
+        </div>
+      </div>
+
+      <div class="protocol-row">
+        <div class="protocol-letter logo-a" style="width:32px;height:32px;font-size:14px;">A</div>
+        <div class="protocol-content">
+          <div class="protocol-name" style="color:var(--a-color)">Activación</div>
+          <div class="protocol-desc">60 seg de movimiento intenso o estímulo térmico. Cambiá de entorno. Generá el estado que necesitás — no esperes tenerlo.</div>
+        </div>
+      </div>
+
+      <div class="protocol-row">
+        <div class="protocol-letter logo-n" style="width:32px;height:32px;font-size:14px;">N</div>
+        <div class="protocol-content">
+          <div class="protocol-name" style="color:var(--n-color)">Normalización</div>
+          <div class="protocol-desc">Externalizá la carga: escribí todo lo que tenés en la cabeza. Definí UNA sola tarea. Reducí el problema a su mínima expresión.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <label class="field-label">Respiración 4-2-6</label>
+      <div style="display:flex;gap:10px;margin-bottom:20px" id="breath-display">
+        <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--r-color)">4</div>
+          <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">INHALAR</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--yellow)">2</div>
+          <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">SOSTENER</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--a-color)">6</div>
+          <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">EXHALAR</div>
+        </div>
+      </div>
+
+      <button class="btn-save" onclick="startBreath()" id="breath-btn">— INICIAR RESPIRACIÓN GUIADA —</button>
+    </div>
+
+    <div class="section" style="margin-bottom:0">
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-icon icon-morning">🗺️</div>
+        <div>
+          <div class="section-title">Mapa de Estados</div>
+          <div class="section-sub">Decisión por estado</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.2);border-radius:10px;">
+          <span style="font-size:16px">🔴</span>
+          <div><div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--red)">Saturación (1–3)</div><div style="font-size:11px;color:var(--text-dim)">No decidir. Aplicar protocolo RAN inmediatamente.</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,165,2,0.06);border:1px solid rgba(255,165,2,0.2);border-radius:10px;">
+          <span style="font-size:16px">🟠</span>
+          <div><div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--orange)">Fatiga (4–6)</div><div style="font-size:11px;color:var(--text-dim)">Solo decisiones operativas. Evitar estrategia.</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,211,42,0.06);border:1px solid rgba(255,211,42,0.2);border-radius:10px;">
+          <span style="font-size:16px">🟡</span>
+          <div><div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--yellow)">Operativo (7)</div><div style="font-size:11px;color:var(--text-dim)">Ejecutar. No redefinir estrategia.</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(0,149,255,0.06);border:1px solid rgba(0,149,255,0.2);border-radius:10px;">
+          <span style="font-size:16px">🔵</span>
+          <div><div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--blue)">Claridad (8–9)</div><div style="font-size:11px;color:var(--text-dim)">Decidir. Ventana real de precisión ejecutiva.</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(0,210,160,0.06);border:1px solid rgba(0,210,160,0.2);border-radius:10px;">
+          <span style="font-size:16px">🟢</span>
+          <div><div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--green)">Estado RAN (10)</div><div style="font-size:11px;color:var(--text-dim)">Decisiones estratégicas de alto impacto.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // State
+  let selectedScales = { morning: 0, midday: 0, night: 0 };
+  let breathInterval = null;
+  let breathPhase = 0;
+  let breathCount = 0;
+
+  // Init
+  document.addEventListener('DOMContentLoaded', () => {
+    updateDate();
+    buildScales();
+    renderHistory();
+    renderStats();
+  });
+
+  function updateDate() {
+    const now = new Date();
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('dateDisplay').textContent = now.toLocaleDateString('es-AR', opts).toUpperCase();
+  }
+
+  function buildScales() {
+    ['morning', 'midday', 'night'].forEach(id => {
+      const container = document.getElementById(`scale-${id}`);
+      for (let i = 1; i <= 10; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'scale-btn';
+        btn.textContent = i;
+        btn.onclick = () => selectScale(id, i);
+        container.appendChild(btn);
+      }
+    });
+  }
+
+  function selectScale(id, val) {
+    selectedScales[id] = val;
+    const container = document.getElementById(`scale-${id}`);
+    container.querySelectorAll('.scale-btn').forEach((btn, i) => {
+      btn.className = 'scale-btn';
+      if (i < val) btn.classList.add(`selected-${val}`);
+    });
+    updateBadge(id, val);
+  }
+
+  function updateBadge(id, val) {
+    const badge = document.getElementById(`badge-${id}`);
+    const states = [
+      null,
+      { label: '🔴 SATURACIÓN — Aplicar protocolo RAN', cls: 'badge-red' },
+      { label: '🔴 SATURACIÓN — Aplicar protocolo RAN', cls: 'badge-red' },
+      { label: '🔴 SATURACIÓN — Aplicar protocolo RAN', cls: 'badge-red' },
+      { label: '🟠 FATIGA — Solo decisiones operativas', cls: 'badge-orange' },
+      { label: '🟠 FATIGA — Solo decisiones operativas', cls: 'badge-orange' },
+      { label: '🟠 FATIGA — Solo decisiones operativas', cls: 'badge-orange' },
+      { label: '🟡 OPERATIVO — Ejecutar, no redefinir', cls: 'badge-yellow' },
+      { label: '🔵 CLARIDAD — Ventana de decisión abierta', cls: 'badge-blue' },
+      { label: '🔵 CLARIDAD — Ventana de decisión abierta', cls: 'badge-blue' },
+      { label: '🟢 ESTADO RAN — Precisión ejecutiva máxima', cls: 'badge-green' },
+    ];
+    const s = states[val];
+    badge.className = `state-badge ${s.cls}`;
+    badge.textContent = s.label;
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+  }
+
+  function toggleSignal(el) {
+    el.classList.toggle('active');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', ['registro','historial','estadisticas','protocolo'][i] === tab);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`panel-${tab}`).classList.add('active');
+    if (tab === 'historial') renderHistory();
+    if (tab === 'estadisticas') renderStats();
+  }
+
+  function getStorage() {
+    try { return JSON.parse(localStorage.getItem('ran_records') || '[]'); } catch { return []; }
+  }
+
+  function setStorage(data) {
+    localStorage.setItem('ran_records', JSON.stringify(data));
+  }
+
+  function saveDay() {
+    const today = new Date().toISOString().split('T')[0];
+    const records = getStorage();
+
+    const signals = [];
+    document.querySelectorAll('.signal-btn.active').forEach(s => signals.push(s.textContent.trim()));
+
+    const checkedMorning = document.querySelectorAll('#panel-registro .section:nth-child(1) .check-item.checked').length;
+    const checkedMidday = document.querySelectorAll('#panel-registro .section:nth-child(2) .check-item.checked').length;
+    const checkedNight = document.querySelectorAll('#panel-registro .section:nth-child(3) .check-item.checked').length;
+
+    const record = {
+      date: today,
+      morning: selectedScales.morning,
+      midday: selectedScales.midday,
+      night: selectedScales.night,
+      focusDay: document.getElementById('focus-day').value,
+      focusMidday: document.getElementById('focus-midday').value,
+      mentalDump: document.getElementById('mental-dump').value,
+      keyDecision: document.getElementById('key-decision').value,
+      learning: document.getElementById('learning').value,
+      signals,
+      checks: { morning: checkedMorning, midday: checkedMidday, night: checkedNight }
+    };
+
+    const existing = records.findIndex(r => r.date === today);
+    if (existing >= 0) records[existing] = record;
+    else records.unshift(record);
+
+    setStorage(records);
+    showToast('✓ Registro guardado');
+    renderStats();
+  }
+
+  function clearForm() {
+    selectedScales = { morning: 0, midday: 0, night: 0 };
+    ['morning', 'midday', 'night'].forEach(id => {
+      document.getElementById(`scale-${id}`).querySelectorAll('.scale-btn').forEach(b => b.className = 'scale-btn');
+      document.getElementById(`badge-${id}`).className = 'state-badge badge-hidden';
+    });
+    document.querySelectorAll('.check-item').forEach(i => i.classList.remove('checked'));
+    document.querySelectorAll('.signal-btn').forEach(b => b.classList.remove('active'));
+    ['focus-day','focus-midday','mental-dump','key-decision','learning'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    showToast('Formulario limpiado');
+  }
+
+  function renderHistory() {
+    const records = getStorage();
+    const container = document.getElementById('history-container');
+
+    if (!records.length) {
+      container.innerHTML = '<div class="history-empty"><div class="empty-icon">📊</div><div>Sin registros aún.<br>Completá tu primer día.</div></div>';
+      return;
+    }
+
+    const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+    container.innerHTML = '<div class="week-label">Registros recientes</div>' + records.slice(0,14).map(r => {
+      const d = new Date(r.date + 'T12:00:00');
+      const label = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+      const getColor = v => v <= 3 ? '#ff4757' : v <= 6 ? '#ffa502' : v === 7 ? '#ffd32a' : v <= 9 ? '#0095ff' : '#00d2a0';
+      const getHeight = v => v ? Math.max(20, v * 8) : 4;
+
+      return `<div class="history-card" onclick="this.classList.toggle('expanded')">
+        <div class="history-card-header">
+          <div class="history-date">${label}</div>
+          <div class="history-scores">
+            ${r.morning ? `<span class="score-pill" style="background:${getColor(r.morning)}22;color:${getColor(r.morning)};border:1px solid ${getColor(r.morning)}44">M:${r.morning}</span>` : ''}
+            ${r.midday ? `<span class="score-pill" style="background:${getColor(r.midday)}22;color:${getColor(r.midday)};border:1px solid ${getColor(r.midday)}44">D:${r.midday}</span>` : ''}
+            ${r.night ? `<span class="score-pill" style="background:${getColor(r.night)}22;color:${getColor(r.night)};border:1px solid ${getColor(r.night)}44">N:${r.night}</span>` : ''}
+          </div>
+        </div>
+        <div class="history-bars">
+          <div class="history-bar-wrap">
+            <div class="history-bar" style="height:${getHeight(r.morning)}px;background:${getColor(r.morning)}"></div>
+            <div class="history-bar-label">MAÑ</div>
+          </div>
+          <div class="history-bar-wrap">
+            <div class="history-bar" style="height:${getHeight(r.midday)}px;background:${getColor(r.midday)}"></div>
+            <div class="history-bar-label">DÍA</div>
+          </div>
+          <div class="history-bar-wrap">
+            <div class="history-bar" style="height:${getHeight(r.night)}px;background:${getColor(r.night)}"></div>
+            <div class="history-bar-label">NOC</div>
+          </div>
+        </div>
+        <div class="history-detail">
+          ${r.focusDay ? `<div class="detail-row"><span class="detail-key">Foco del día</span><span class="detail-val">${r.focusDay}</span></div>` : ''}
+          ${r.keyDecision ? `<div class="detail-row"><span class="detail-key">Decisión clave</span><span class="detail-val">${r.keyDecision}</span></div>` : ''}
+          ${r.learning ? `<div class="detail-row"><span class="detail-key">Aprendizaje</span><span class="detail-val">${r.learning}</span></div>` : ''}
+          ${r.signals && r.signals.length ? `<div class="detail-row"><span class="detail-key">Señales</span><span class="detail-val">${r.signals.join(', ')}</span></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStats() {
+    const records = getStorage();
+    document.getElementById('stat-days').textContent = records.length;
+
+    if (!records.length) {
+      document.getElementById('stat-avg').textContent = '—';
+      document.getElementById('stat-streak').textContent = '0';
+      document.getElementById('stat-best').textContent = '—';
+      renderTrend([]);
+      return;
+    }
+
+    const mornings = records.filter(r => r.morning > 0).map(r => r.morning);
+    const avg = mornings.length ? (mornings.reduce((a,b) => a+b, 0) / mornings.length).toFixed(1) : '—';
+    const best = mornings.length ? Math.max(...mornings) : '—';
+
+    document.getElementById('stat-avg').textContent = avg;
+    document.getElementById('stat-best').textContent = best;
+
+    // Streak
+    let streak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const dates = records.map(r => r.date).sort().reverse();
+    for (let i = 0; i < dates.length; i++) {
+      const expected = new Date();
+      expected.setDate(expected.getDate() - i);
+      if (dates[i] === expected.toISOString().split('T')[0]) streak++;
+      else break;
+    }
+    document.getElementById('stat-streak').textContent = streak;
+
+    renderTrend(records.slice(0, 7).reverse());
+
+    if (records.length >= 3) {
+      const patterns = [];
+      const avgM = mornings.length ? mornings.reduce((a,b)=>a+b,0)/mornings.length : 0;
+      if (avgM < 5) patterns.push('Tu estado inicial tiende a ser bajo. Revisá la calidad del sueño y el cierre nocturno.');
+      else if (avgM >= 8) patterns.push('Tu estado matutino es consistentemente alto. El sistema nocturno está funcionando.');
+      
+      const nights = records.filter(r => r.night > 0).map(r => r.night);
+      const avgN = nights.length ? nights.reduce((a,b)=>a+b,0)/nights.length : 0;
+      if (avgN < avgM - 2) patterns.push('Hay una caída significativa entre la mañana y el cierre. Considerá agregar más pausas RAN durante el día.');
+      
+      if (patterns.length === 0) patterns.push('Seguí registrando para detectar patrones más específicos en tu arquitectura cognitiva.');
+      
+      document.getElementById('pattern-analysis').innerHTML = patterns.map(p => `<div style="margin-bottom:8px;padding-left:12px;border-left:2px solid var(--accent)">→ ${p}</div>`).join('');
+    }
+  }
+
+  function renderTrend(records) {
+    const container = document.getElementById('trend-bars');
+    const days = ['D','L','M','M','J','V','S'];
+    
+    if (!records.length) {
+      container.innerHTML = '<div style="width:100%;text-align:center;color:var(--text-muted);font-size:11px;align-self:center">Sin datos aún</div>';
+      return;
+    }
+
+    const getColor = v => v <= 3 ? '#ff4757' : v <= 6 ? '#ffa502' : v === 7 ? '#ffd32a' : v <= 9 ? '#0095ff' : '#00d2a0';
+
+    container.innerHTML = records.map(r => {
+      const d = new Date(r.date + 'T12:00:00');
+      const val = r.morning || 0;
+      const h = val ? Math.max(8, val * 7) : 4;
+      return `<div class="trend-col">
+        <div class="trend-bar" style="height:${h}px;background:${getColor(val)};opacity:${val ? 1 : 0.2}"></div>
+        <div class="trend-day">${days[d.getDay()]}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // Breathing guide
+  function startBreath() {
+    if (breathInterval) {
+      clearInterval(breathInterval);
+      breathInterval = null;
+      document.getElementById('breath-btn').textContent = '— INICIAR RESPIRACIÓN GUIADA —';
+      document.getElementById('breath-btn').style.background = 'var(--accent)';
+      resetBreathDisplay();
+      return;
+    }
+
+    breathCount = 0;
+    breathPhase = 0;
+    const phases = [
+      { label: 'INHALAR', duration: 4, color: 'var(--r-color)' },
+      { label: 'SOSTENER', duration: 2, color: 'var(--yellow)' },
+      { label: 'EXHALAR', duration: 6, color: 'var(--a-color)' }
+    ];
+
+    document.getElementById('breath-btn').textContent = '— DETENER —';
+    document.getElementById('breath-btn').style.background = 'var(--red)';
+
+    let elapsed = 0;
+    let currentPhase = 0;
+    let cyclesDone = 0;
+
+    function tick() {
+      const phase = phases[currentPhase];
+      const remaining = phase.duration - elapsed;
+      
+      const display = document.getElementById('breath-display');
+      display.innerHTML = phases.map((p, i) => `
+        <div style="flex:1;text-align:center;padding:14px;background:${i===currentPhase?p.color+'22':'var(--surface2)'};border:1px solid ${i===currentPhase?p.color:'var(--border)'};border-radius:10px;transition:all 0.3s">
+          <div style="font-family:'Syne',sans-serif;font-size:${i===currentPhase?'32':'22'}px;font-weight:800;color:${i===currentPhase?p.color:'var(--text-muted)'}">
+            ${i===currentPhase ? remaining : p.duration}
+          </div>
+          <div style="font-size:9px;color:${i===currentPhase?p.color:'var(--text-muted)'};letter-spacing:2px;margin-top:4px">${p.label}</div>
+        </div>`).join('');
+
+      elapsed++;
+      if (elapsed >= phase.duration) {
+        elapsed = 0;
+        currentPhase = (currentPhase + 1) % 3;
+        if (currentPhase === 0) {
+          cyclesDone++;
+          if (cyclesDone >= 3) {
+            clearInterval(breathInterval);
+            breathInterval = null;
+            document.getElementById('breath-btn').textContent = '— COMPLETADO ✓ —';
+            document.getElementById('breath-btn').style.background = 'var(--accent)';
+            showToast('✓ 3 ciclos completados');
+            setTimeout(() => {
+              document.getElementById('breath-btn').textContent = '— INICIAR RESPIRACIÓN GUIADA —';
+              resetBreathDisplay();
+            }, 2000);
+            return;
+          }
+        }
+      }
+    }
+
+    tick();
+    breathInterval = setInterval(tick, 1000);
+  }
+
+  function resetBreathDisplay() {
+    document.getElementById('breath-display').innerHTML = `
+      <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--r-color)">4</div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">INHALAR</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--yellow)">2</div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">SOSTENER</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--a-color)">6</div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:2px;margin-top:4px">EXHALAR</div>
+      </div>`;
+  }
+</script>
+</body>
+</html>
